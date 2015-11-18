@@ -97,9 +97,6 @@ class Convolution2D(function.Function):
         self.kh, self.kw = ksize
         self.sy, self.sx = stride
         self.ph, self.pw = pad
-        self.is1x1 = (self.kh == 1 and self.kw == 1 and
-                      self.sy == 1 and self.sx == 1 and
-                      self.ph == 0 and self.pw == 0)
 
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -212,7 +209,7 @@ class Convolution2D(function.Function):
                     self.bias_desc.value, self.b.data.ptr, one, y_desc.value,
                     y.data.ptr)
         else:
-            if self.is1x1:
+            if self.is1x1():
                 self.col = x[0].reshape(n, c, -1)
             else:
                 # Implementation using im2col
@@ -289,13 +286,18 @@ class Convolution2D(function.Function):
             for i in moves.range(n):
                 cuda.cupy.dot(W_mat.T, gy_mats[i], gcol_mats[i])
 
-            if self.is1x1:
+            if self.is1x1():
                 gx = gcol.reshape(n, c, h, w)
             else:
                 gx = conv.col2im_gpu(
                     gcol, self.sy, self.sx, self.ph, self.pw, h, w)
 
         return gx,
+
+    def is1x1(self):
+        return (self.kh == 1 and self.kw == 1 and
+                self.sy == 1 and self.sx == 1 and
+                self.ph == 0 and self.pw == 0)
 
 
 class NonparameterizedConvolution2D(function.Function):
